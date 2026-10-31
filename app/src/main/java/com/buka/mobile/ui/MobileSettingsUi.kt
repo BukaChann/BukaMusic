@@ -1648,17 +1648,17 @@ private fun AboutSettingsPage(onEnableDeveloper: () -> Unit) {
             AboutClientRow(
                 title = "BukaMusic · 布卡流音",
                 subtitle = "手机端主应用（当前客户端）",
-                onClick = { open("https://github.com/HAN-BAK/BukaMusic") },
+                onClick = { open("https://github.com/BukaChann/BukaMusic") },
             )
             AboutClientRow(
                 title = "BukaMusic Connect · 布卡聚音",
                 subtitle = "互联终端、AirPlay 与多房间设备端",
-                onClick = { open("https://github.com/HAN-BAK/BukaMusic-Connect") },
+                onClick = { open("https://github.com/BukaChann/BukaMusic-Connect") },
             )
             AboutClientRow(
                 title = "BukaMusic Desktop · 布卡音台",
                 subtitle = "Windows 桌面控制端",
-                onClick = { open("https://github.com/HAN-BAK/BukaMusic-Desktop") },
+                onClick = { open("https://github.com/BukaChann/BukaMusic-Desktop") },
             )
         }
         SettingsCard("第三方开源库", Icons.Rounded.LibraryMusic) {

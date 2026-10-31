@@ -5,12 +5,12 @@
 <p align="center"><strong>布卡流音</strong> · 布卡系列手机端主应用：本地音乐 / 歌单 / 动态歌词 / USB 音频 / 多房间同步</p>
 
 <p align="center">
-  互联端：<a href="https://github.com/HAN-BAK/BukaMusic-Connect">BukaMusic Connect</a>
+  互联端：<a href="https://github.com/BukaChann/BukaMusic-Connect">BukaMusic Connect</a>
   ·
-  桌面端：<a href="https://github.com/HAN-BAK/BukaMusic-Desktop">BukaMusic Desktop</a>
+  桌面端：<a href="https://github.com/BukaChann/BukaMusic-Desktop">BukaMusic Desktop</a>
 </p>
 
-<p align="center">手动下载：<a href="https://github.com/HAN-BAK/BukaMusic/releases">GitHub Releases</a> · <a href="https://gitee.com/hanhan2048/BukaMusic-Releases/releases">Gitee Releases</a></p>
+<p align="center">手动下载：<a href="https://github.com/BukaChann/BukaMusic/releases">GitHub Releases</a> · <a href="https://gitee.com/hanhan2048/BukaMusic-Releases/releases">Gitee Releases</a></p>
 
 <p align="center">应用内更新：通过 Gitee 检测新版本并下载安装包</p>
 
