@@ -2210,7 +2210,7 @@ private fun MultiRoomScreen(
                                 Modifier
                                     .size(10.dp)
                                     .clip(CircleShape)
-                                    .background(BukaMint),
+                                    .background(LocalBukaPalette.current.accentStrong),
                             )
                             Spacer(Modifier.width(9.dp))
                             Text("正在接收多房间音乐", color = palette.background, style = MaterialTheme.typography.titleMedium)
@@ -3603,7 +3603,7 @@ private fun PlayerSleepTimerDialog(
     var minutes by remember { mutableFloatStateOf(30f) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = BukaPaper,
+        containerColor = LocalBukaPalette.current.background,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         Column(
@@ -3694,7 +3694,7 @@ private fun PlayerVolumeDialog(onDismiss: () -> Unit) {
     }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = BukaPaper,
+        containerColor = LocalBukaPalette.current.background,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         Column(
@@ -3747,7 +3747,7 @@ private fun QueueSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = BukaPaper,
+        containerColor = LocalBukaPalette.current.background,
     ) {
         Column(
             Modifier
