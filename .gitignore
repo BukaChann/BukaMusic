@@ -1,0 +1,14 @@
+/.gradle/
+/.kotlin/
+/.idea/
+/build/
+/app/build/
+**/build/
+**/.gradle/
+**/.kotlin/
+**/.idea/
+**/.cxx/
+**/.externalNativeBuild/
+/local.properties
+*.iml
+*.log

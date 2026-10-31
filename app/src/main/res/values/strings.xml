@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">布卡流音</string>
+    <string name="lyrics_not_found">暂未找到歌词</string>
+</resources>

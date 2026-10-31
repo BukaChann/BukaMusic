@@ -1,0 +1,32 @@
+plugins {
+    id("com.android.library")
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}
+
+android {
+    namespace = "com.decent.usbaudio"
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 23
+        consumerProguardFiles("consumer-rules.pro")
+        externalNativeBuild { cmake { cppFlags("") } }
+    }
+
+    ndkVersion = "28.2.13676358"
+
+    externalNativeBuild {
+        cmake {
+            path("src/main/jni/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
