@@ -189,6 +189,15 @@ internal enum class VisualDisplayMode {
     GRID,
 }
 
+private data class HomeGridCardModel(
+    val title: String,
+    val count: Int,
+    val tracks: List<TrackItem>,
+    val favorite: Boolean,
+    val onClick: () -> Unit,
+    val onPlay: () -> Unit,
+)
+
 private val MusicOneStandardEasing = CubicBezierEasing(.2f, 0f, 0f, 1f)
 
 private fun usesWideLandscape(width: Dp, height: Dp): Boolean =
@@ -1045,7 +1054,7 @@ private fun HomeScreen(
 ) {
     val palette = LocalBukaPalette.current
     var selectedPlaylist by rememberSaveable { mutableStateOf<String?>(null) }
-    var homeDisplayMode by rememberSaveable { mutableStateOf(VisualDisplayMode.LIST) }
+    var homeDisplayMode by rememberDisplayModePreference("home")
     BackHandler(enabled = selectedPlaylist != null) {
         selectedPlaylist = null
     }
@@ -1119,6 +1128,9 @@ private fun HomeScreen(
         } else {
             BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = usesWideLandscape(maxWidth, maxHeight)
+        val homeGridColumns = ((maxWidth - 40.dp) / 162.dp)
+            .toInt()
+            .coerceAtLeast(2)
         LazyColumn(
             modifier = Modifier
                 .widthIn(max = 1180.dp)
@@ -1292,24 +1304,19 @@ private fun HomeScreen(
                 )
             }
             if (homeDisplayMode == VisualDisplayMode.GRID) {
-                item { SectionTitle("每日推荐", dailyRecommendations.dateKey) }
-                item {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        PlaylistGridCard(
+                val gridCards = buildList {
+                    add(
+                        HomeGridCardModel(
                             title = "每日推荐",
                             count = dailyRecommendations.tracks.size,
                             tracks = dailyRecommendations.tracks,
                             favorite = false,
                             onClick = { selectedPlaylist = "daily" },
                             onPlay = onPlayDaily,
-                            onMenu = null,
-                            modifier = Modifier.weight(1f),
-                        )
-                        PlaylistGridCard(
+                        ),
+                    )
+                    add(
+                        HomeGridCardModel(
                             title = "我喜欢",
                             count = playlists.favorites.size,
                             tracks = playlists.favorites.mapNotNull { uri ->
@@ -1318,20 +1325,11 @@ private fun HomeScreen(
                             favorite = true,
                             onClick = { selectedPlaylist = "favorites" },
                             onPlay = onPlayFavorites,
-                            onMenu = null,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-                item { SectionTitle("我的歌单", "收藏与自建歌单") }
-                items(playlists.playlists.chunked(if (wide) 3 else 2)) { rowPlaylists ->
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        rowPlaylists.forEach { playlist ->
-                            PlaylistGridCard(
+                        ),
+                    )
+                    playlists.playlists.forEach { playlist ->
+                        add(
+                            HomeGridCardModel(
                                 title = playlist.title,
                                 count = playlist.trackUris.size,
                                 tracks = playlist.trackUris.mapNotNull { uri ->
@@ -1340,11 +1338,30 @@ private fun HomeScreen(
                                 favorite = false,
                                 onClick = { selectedPlaylist = "custom:${playlist.id}" },
                                 onPlay = { onPlayPlaylist(playlist) },
+                            ),
+                        )
+                    }
+                }
+                item { SectionTitle("推荐与我的歌单", dailyRecommendations.dateKey) }
+                items(gridCards.chunked(homeGridColumns)) { rowCards ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        rowCards.forEach { card ->
+                            PlaylistGridCard(
+                                title = card.title,
+                                count = card.count,
+                                tracks = card.tracks,
+                                favorite = card.favorite,
+                                onClick = card.onClick,
+                                onPlay = card.onPlay,
                                 onMenu = null,
                                 modifier = Modifier.weight(1f),
                             )
                         }
-                        repeat((if (wide) 3 else 2) - rowPlaylists.size) {
+                        repeat(homeGridColumns - rowCards.size) {
                             Spacer(Modifier.weight(1f))
                         }
                     }
@@ -1759,7 +1776,7 @@ private fun LibraryScreen(
     val palette = LocalBukaPalette.current
     var query by rememberSaveable { mutableStateOf("") }
     var mode by rememberSaveable { mutableStateOf(LibraryView.SONGS) }
-    var displayMode by rememberSaveable { mutableStateOf(VisualDisplayMode.LIST) }
+    var displayMode by rememberDisplayModePreference("library")
     var selectedArtist by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAlbum by rememberSaveable { mutableStateOf<String?>(null) }
     var selectionMode by remember { mutableStateOf(false) }

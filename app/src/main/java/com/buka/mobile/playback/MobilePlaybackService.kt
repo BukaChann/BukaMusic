@@ -21,11 +21,14 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import androidx.media.app.NotificationCompat as MediaNotificationCompat
+import androidx.media.session.MediaButtonReceiver
 import com.airmusic.player.library.EmbeddedCoverReader
 import com.airmusic.player.library.Track
 import com.airmusic.player.lyrics.Lyrics
@@ -144,8 +147,10 @@ class MobilePlaybackService : Service() {
                 )
             }
             updateNotification()
-            if (item != null && multiRoomManager.hasTargets()) {
-                multiRoomManager.sendMeta(item.title, item.artist, item.album, item.durationMs)
+            if (item != null) {
+                if (multiRoomManager.hasTargets()) {
+                    multiRoomManager.sendMeta(item.title, item.artist, item.album, item.durationMs)
+                }
                 sendArtwork(item, force = true)
             }
             syncMultiRoomStreamer()
@@ -216,7 +221,7 @@ class MobilePlaybackService : Service() {
                     )
                 }
                 remoteArtwork = null
-                updateNotification()
+                updateNotification(remoteArtwork)
             }
         }
 
@@ -919,6 +924,8 @@ class MobilePlaybackService : Service() {
                 mode = if (settings.restorePlaybackMode) saved.mode else it.mode,
             )
         }
+        updateNotification(null)
+        sendArtwork(tracks[index], force = true)
         return true
     }
 
@@ -981,6 +988,7 @@ class MobilePlaybackService : Service() {
         remotePlayer = null
         val restoredTrack = TrackItem.fromNative(localPlayer.currentTrack)
         val restoredQueue = localPlayer.playlist.mapNotNull(::trackItem)
+        lastArtwork = null
         PlaybackStore.update {
             it.copy(
                 source = if (restoredTrack != null) PlaybackSource.LOCAL else PlaybackSource.IDLE,
@@ -996,7 +1004,8 @@ class MobilePlaybackService : Service() {
                 remoteLyricsHints = emptyList(),
             )
         }
-        updateNotification()
+        updateNotification(null)
+        restoredTrack?.let { sendArtwork(it, force = true) }
     }
 
     private fun sourceIsRemote(): Boolean =
@@ -1073,16 +1082,18 @@ class MobilePlaybackService : Service() {
             Log.d("MultiRoomArtwork", "load uri=${track.uri} force=$force")
             val bytes = readArtworkForTransfer(track.uri)
             main.post {
-                val currentUri = localPlayer.currentTrack?.uri?.toString()
+                val currentUri = PlaybackStore.state.value.current?.uri
                 Log.d("MultiRoomArtwork",
                     "loaded uri=${track.uri} bytes=${bytes.size} current=$currentUri")
                 if (currentUri == track.uri) {
                     if (!force && bytes.contentEquals(lastArtwork)) return@post
                     lastArtwork = bytes
                     updateNotification(bytes)
-                    Log.i("MultiRoomArtwork",
-                        "send uri=${track.uri} bytes=${bytes.size} force=$force")
-                    multiRoomManager.sendArt(bytes)
+                    if (multiRoomManager.hasTargets()) {
+                        Log.i("MultiRoomArtwork",
+                            "send uri=${track.uri} bytes=${bytes.size} force=$force")
+                        multiRoomManager.sendArt(bytes)
+                    }
                 }
             }
         }
@@ -1121,44 +1132,32 @@ class MobilePlaybackService : Service() {
     }.getOrDefault(ByteArray(0))
 
     private fun updateNotification(artworkBytes: ByteArray? = lastArtwork) {
-        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(PlaybackStore.state.value.current?.title ?: getString(R.string.app_name))
-            .setContentText(
-                PlaybackStore.state.value.current?.artist?.takeIf(String::isNotBlank)
-                    ?: "本地音乐与多房间同步",
-            )
-            .setContentIntent(openAppIntent())
-            .setOnlyAlertOnce(true)
-            .setSilent(true)
-            .setOngoing(PlaybackStore.state.value.isPlaying)
-            .addAction(0, "上一首", serviceAction(ACTION_PREVIOUS, 1))
-            .addAction(
-                0,
-                if (PlaybackStore.state.value.isPlaying) "暂停" else "播放",
-                serviceAction(ACTION_TOGGLE, 2),
-            )
-            .addAction(0, "下一首", serviceAction(ACTION_NEXT, 3))
-            .apply {
-                artworkBytes?.let {
-                    val bitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
-                    if (bitmap != null) setLargeIcon(bitmap)
-                }
-            }
-            .build()
+        val notification = buildPlaybackNotification(artworkBytes)
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
         updateMediaSessionMetadata(artworkBytes)
     }
 
     private fun createMediaSession() {
         val session = MediaSessionCompat(this, "BukaMusicMobile").apply {
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS,
+            )
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() = togglePlaybackIfPaused()
                 override fun onPause() = pausePlayback()
                 override fun onSkipToNext() = next()
                 override fun onSkipToPrevious() = previous()
                 override fun onSeekTo(pos: Long) = seekTo(pos)
+                override fun onStop() = stopSelf()
             })
+            setSessionActivity(openAppIntent())
+            setMediaButtonReceiver(
+                MediaButtonReceiver.buildMediaButtonPendingIntent(
+                    this@MobilePlaybackService,
+                    PlaybackStateCompat.ACTION_PLAY_PAUSE,
+                ),
+            )
             isActive = true
         }
         mediaSession = session
@@ -1202,7 +1201,7 @@ class MobilePlaybackService : Service() {
             .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, track.album)
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, state.durationMs)
         artworkBytes?.let {
-            BitmapFactory.decodeByteArray(it, 0, it.size)?.let { bitmap ->
+            notificationArtworkBitmap(it)?.let { bitmap ->
                 builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
             }
         }
@@ -1237,26 +1236,102 @@ class MobilePlaybackService : Service() {
                     else PlaybackStateCompat.STATE_PAUSED,
                     state.positionMs,
                     if (state.isPlaying) 1f else 0f,
+                    SystemClock.elapsedRealtime(),
                 )
                 .build(),
         )
         updateMediaSessionMetadata()
     }
 
-    private fun buildNotification(): Notification =
-        NotificationCompat.Builder(this, NOTIFICATION_CHANNEL)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText("本地音乐播放与多房间同步")
+    private fun buildNotification(): Notification = buildPlaybackNotification(null)
+
+    private fun buildPlaybackNotification(artworkBytes: ByteArray?): Notification {
+        val state = PlaybackStore.state.value
+        val track = state.current
+        val session = mediaSession
+        val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_buka)
+            .setContentTitle(track?.title ?: getString(R.string.app_name))
+            .setContentText(
+                track?.artist?.takeIf(String::isNotBlank)
+                    ?: "本地音乐与多房间同步",
+            )
+            .setSubText(track?.album?.takeIf(String::isNotBlank))
             .setContentIntent(openAppIntent())
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOnlyAlertOnce(true)
             .setSilent(true)
-            .build()
+            .setShowWhen(false)
+            .setOngoing(state.isPlaying)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .addAction(
+                R.drawable.ic_skip_previous,
+                "上一首",
+                serviceAction(ACTION_PREVIOUS, 1),
+            )
+            .addAction(
+                if (state.isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
+                if (state.isPlaying) "暂停" else "播放",
+                serviceAction(ACTION_TOGGLE, 2),
+            )
+            .addAction(
+                R.drawable.ic_skip_next,
+                "下一首",
+                serviceAction(ACTION_NEXT, 3),
+            )
+        artworkBytes?.let {
+            notificationArtworkBitmap(it)?.let { bitmap ->
+                builder.setLargeIcon(bitmap)
+            }
+        }
+        val mediaStyle = MediaNotificationCompat.MediaStyle()
+            .setShowActionsInCompactView(0, 1, 2)
+        session?.let {
+            mediaStyle.setMediaSession(it.sessionToken)
+        }
+        return builder.setStyle(mediaStyle).build()
+    }
+
+    private fun notificationArtworkBitmap(bytes: ByteArray): Bitmap? = runCatching {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        var sampleSize = 1
+        while (
+            bounds.outWidth / sampleSize > NOTIFICATION_ARTWORK_SIZE * 2 ||
+            bounds.outHeight / sampleSize > NOTIFICATION_ARTWORK_SIZE * 2
+        ) {
+            sampleSize *= 2
+        }
+        val decoded = BitmapFactory.decodeByteArray(
+            bytes,
+            0,
+            bytes.size,
+            BitmapFactory.Options().apply { inSampleSize = sampleSize },
+        ) ?: return null
+        val largestSide = maxOf(decoded.width, decoded.height).coerceAtLeast(1)
+        if (largestSide <= NOTIFICATION_ARTWORK_SIZE) {
+            decoded
+        } else {
+            val scale = NOTIFICATION_ARTWORK_SIZE.toFloat() / largestSide
+            Bitmap.createScaledBitmap(
+                decoded,
+                (decoded.width * scale).toInt().coerceAtLeast(1),
+                (decoded.height * scale).toInt().coerceAtLeast(1),
+                true,
+            ).also {
+                if (it !== decoded) decoded.recycle()
+            }
+        }
+    }.getOrNull()
 
     private fun openAppIntent(): PendingIntent = PendingIntent.getActivity(
         this,
         0,
-        Intent(this, MainActivity::class.java),
+        Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
@@ -1277,6 +1352,9 @@ class MobilePlaybackService : Service() {
         ).apply {
             description = "本地播放与多房间同步状态"
             setShowBadge(false)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setSound(null, null)
+            enableVibration(false)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
@@ -1297,6 +1375,7 @@ class MobilePlaybackService : Service() {
         const val ACTION_STOP = "com.buka.mobile.action.STOP"
         private const val NOTIFICATION_CHANNEL = "buka_mobile_playback"
         private const val NOTIFICATION_ID = 2107
+        private const val NOTIFICATION_ARTWORK_SIZE = 512
         private const val TAG = "MobilePlaybackService"
         private const val RESTORE_MAX_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
 

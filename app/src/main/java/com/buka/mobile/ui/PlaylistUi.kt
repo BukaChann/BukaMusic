@@ -97,7 +97,7 @@ fun PlaylistLibraryContent(
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     var createDialog by remember { mutableStateOf(false) }
     var menuPlaylist by remember { mutableStateOf<LocalPlaylist?>(null) }
-    var displayMode by rememberSaveable { mutableStateOf(VisualDisplayMode.LIST) }
+    var displayMode by rememberDisplayModePreference("playlists")
     val byUri = remember(tracks) { tracks.associateBy(TrackItem::uri) }
     val favorites = playlists.favorites.mapNotNull(byUri::get)
     val selected = playlists.playlists.firstOrNull { it.id == selectedId }

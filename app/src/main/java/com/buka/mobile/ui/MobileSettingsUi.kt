@@ -56,6 +56,7 @@ import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -1660,6 +1661,38 @@ private fun AboutSettingsPage(onEnableDeveloper: () -> Unit) {
                 onClick = { open("https://github.com/HAN-BAK/BukaMusic-Desktop") },
             )
         }
+        SettingsCard("第三方开源库", Icons.Rounded.LibraryMusic) {
+            Text(
+                "以下为客户端直接使用或移植的重要开源项目；完整许可证文本见 NOTICE.md 与 LICENSES 目录。",
+                color = palette.muted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            AboutLibraryRow(
+                title = "AndroidX / Jetpack Compose / Media3",
+                subtitle = "Apache License 2.0",
+                url = "https://github.com/androidx/androidx",
+            )
+            AboutLibraryRow(
+                title = "TagLib for Android",
+                subtitle = "Apache License 2.0",
+                url = "https://github.com/Kyant0/taglib",
+            )
+            AboutLibraryRow(
+                title = "MusicOne",
+                subtitle = "MIT License · Compose 界面基线与部分字体资源",
+                url = "https://github.com/HGODLK/MusicOne",
+            )
+            AboutLibraryRow(
+                title = "Folia for Android",
+                subtitle = "AGPL-3.0 · Sonnet 动态歌词与 OpenGL 后处理",
+                url = "https://github.com/Timingyyds/folia-android",
+            )
+            AboutLibraryRow(
+                title = "DecentPlayer USB Audio Driver",
+                subtitle = "MIT License · UAC2 USB 音频输出",
+                url = "https://github.com/HGODLK/MusicOne",
+            )
+        }
         SettingsCard("开源信息", Icons.Rounded.Save) {
             Text(
                 "界面基础来自 MusicOne（MIT）；播放与多房间逻辑来自 BukaMusic Connect；Folia Sonnet 动态歌词遵循 AGPL-3.0。",
@@ -1704,6 +1737,43 @@ private fun AboutClientRow(title: String, subtitle: String, onClick: () -> Unit)
             )
         }
         Icon(Icons.Rounded.Info, null, tint = palette.accentStrong)
+    }
+}
+
+@Composable
+private fun AboutLibraryRow(title: String, subtitle: String, url: String) {
+    val palette = LocalBukaPalette.current
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    FilledTonalButton(
+        onClick = {
+            clipboard.setText(AnnotatedString(url))
+            Toast.makeText(context, "项目链接已复制", Toast.LENGTH_SHORT).show()
+        },
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = palette.accentSoft,
+            contentColor = palette.accentStrong,
+        ),
+    ) {
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(vertical = 4.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                color = palette.accentStrong,
+            )
+            Text(
+                subtitle,
+                color = palette.muted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Icon(Icons.Rounded.ContentCopy, "复制项目链接", tint = palette.accentStrong)
     }
 }
 

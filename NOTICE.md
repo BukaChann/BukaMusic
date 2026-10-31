@@ -1,5 +1,17 @@
 # Third-party notices
 
+## AndroidX / Jetpack Compose / Media3
+
+- AndroidX, Jetpack Compose and AndroidX Media3
+- https://github.com/androidx/androidx
+- Apache License 2.0
+
+## TagLib for Android
+
+- TagLib Android binding by Kyant
+- https://github.com/Kyant0/taglib
+- Apache License 2.0
+
 ## MusicOne
 
 本项目的 Compose 视觉基线与部分字体资源来自：
@@ -16,6 +28,10 @@
 `usb-audio-driver` 模块移植自 MusicOne 使用的 DecentPlayer USB Audio
 驱动，包含 UAC2 描述符解析、等时传输与 JNI 输出实现。原始许可证保留在
 `usb-audio-driver/LICENSE`。
+
+- DecentPlayer USB Audio Driver
+- Copyright (c) 2026 Marcelo Silva
+- MIT License
 
 ## BukaMusic
 
