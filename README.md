@@ -1,4 +1,4 @@
-<h1 align="center">BukaMusic</h1>
+<h1 align="center">BukaMusic（布卡流音）</h1>
 
 <p align="center"><img src="docs/icon.png" width="112" alt="BukaMusic"></p>
 
