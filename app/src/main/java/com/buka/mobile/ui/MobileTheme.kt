@@ -123,6 +123,12 @@ fun BukaMobileTheme(
             onPrimaryContainer = palette.ink,
             secondary = palette.accentStrong,
             onSecondary = palette.onAccent,
+            secondaryContainer = palette.accentSoft,
+            onSecondaryContainer = palette.accentStrong,
+            tertiary = palette.accentStrong,
+            onTertiary = palette.onAccent,
+            tertiaryContainer = palette.accentSoft,
+            onTertiaryContainer = palette.ink,
             background = palette.background,
             onBackground = palette.ink,
             surface = palette.surface,
@@ -131,6 +137,10 @@ fun BukaMobileTheme(
             onSurfaceVariant = palette.muted,
             outline = palette.line,
             outlineVariant = palette.line,
+            surfaceTint = palette.accent,
+            inverseSurface = palette.ink,
+            inverseOnSurface = palette.background,
+            inversePrimary = palette.accentStrong,
         )
     } else {
         lightColorScheme(
@@ -140,6 +150,12 @@ fun BukaMobileTheme(
             onPrimaryContainer = palette.ink,
             secondary = palette.accentStrong,
             onSecondary = palette.onAccent,
+            secondaryContainer = palette.accentSoft,
+            onSecondaryContainer = palette.accentStrong,
+            tertiary = palette.accentStrong,
+            onTertiary = palette.onAccent,
+            tertiaryContainer = palette.accentSoft,
+            onTertiaryContainer = palette.ink,
             background = palette.background,
             onBackground = palette.ink,
             surface = palette.surface,
@@ -148,6 +164,10 @@ fun BukaMobileTheme(
             onSurfaceVariant = palette.muted,
             outline = palette.line,
             outlineVariant = palette.line,
+            surfaceTint = palette.accent,
+            inverseSurface = palette.ink,
+            inverseOnSurface = palette.background,
+            inversePrimary = palette.accentStrong,
         )
     }
     CompositionLocalProvider(

@@ -1,6 +1,7 @@
 package com.buka.mobile.ui
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -19,6 +20,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +60,7 @@ import androidx.compose.material.icons.rounded.Equalizer
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Palette
@@ -104,9 +107,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -114,8 +119,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.buka.mobile.BuildConfig
 import com.buka.mobile.LibraryUiState
 import com.buka.mobile.MobileViewModel
+import com.buka.mobile.R
 import com.buka.mobile.data.LinkedMusicFolder
 import com.buka.mobile.data.ListeningStat
 import com.buka.mobile.data.ListeningStats
@@ -142,6 +149,7 @@ private enum class SettingsPage(
     LIBRARY("本地曲库", "统计、目录、归档与整理", Icons.Rounded.LibraryMusic),
     APPEARANCE("外观与个性化", "主题、背景、缩放与动效", Icons.Rounded.Palette),
     UPDATE("软件更新", "检查新版本并安全安装", Icons.Rounded.SystemUpdate),
+    ABOUT("关于", "版本、客户端关系与开源信息", Icons.Rounded.Info),
     STORAGE("存储与备份", "空间统计、缓存和配置迁移", Icons.Rounded.Storage),
     DIAGNOSTICS("诊断", "日志、崩溃记录与安全模式", Icons.Rounded.BugReport),
 }
@@ -206,11 +214,6 @@ internal fun MobileSettingsHost(
                 library = library,
                 stats = stats,
                 onOpen = { page = it },
-                onEnableDeveloper = {
-                    viewModel.updateSettings {
-                        it.copy(developerMode = true, persistentLogs = true)
-                    }
-                },
             )
         } else {
             SettingsPageFrame(
@@ -241,6 +244,13 @@ internal fun MobileSettingsHost(
                         onPickBackground,
                     )
                     SettingsPage.UPDATE -> UpdateSettingsPage()
+                    SettingsPage.ABOUT -> AboutSettingsPage(
+                        onEnableDeveloper = {
+                            viewModel.updateSettings {
+                                it.copy(developerMode = true, persistentLogs = true)
+                            }
+                        },
+                    )
                     SettingsPage.STORAGE -> StorageSettingsPage(
                         viewModel = viewModel,
                         onExportConfig = onExportConfig,
@@ -263,7 +273,6 @@ private fun SettingsHome(
     library: LibraryUiState,
     stats: ListeningStats,
     onOpen: (SettingsPage) -> Unit,
-    onEnableDeveloper: () -> Unit,
 ) {
     val palette = LocalBukaPalette.current
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -312,6 +321,7 @@ private fun SettingsHome(
                 add(SettingsPage.LIBRARY)
                 add(SettingsPage.APPEARANCE)
                 add(SettingsPage.UPDATE)
+                add(SettingsPage.ABOUT)
                 add(SettingsPage.STORAGE)
                 if (settings.developerMode) add(SettingsPage.DIAGNOSTICS)
             }
@@ -335,9 +345,6 @@ private fun SettingsHome(
                         onClick = { onOpen(page) },
                     )
                 }
-            }
-            item {
-                AboutSettingsCard(onEnableDeveloper)
             }
         }
     }
@@ -1587,35 +1594,116 @@ private fun UpdateSettingsPage() {
 }
 
 @Composable
-private fun AboutSettingsCard(onEnableDeveloper: () -> Unit) {
+private fun AboutSettingsPage(onEnableDeveloper: () -> Unit) {
+    val context = LocalContext.current
+    val palette = LocalBukaPalette.current
     var tapCount by rememberSaveable { mutableStateOf(0) }
-    val clipboard = LocalClipboardManager.current
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = LocalBukaPalette.current.surfaceAlt,
-        shape = RoundedCornerShape(24.dp),
+    fun open(url: String) {
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+    }
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Column(
-            Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        SettingsCard("布卡流音", Icons.Rounded.Info) {
+            Image(
+                painter = painterResource(R.drawable.brand_mark),
+                contentDescription = "布卡流音",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .size(88.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .clickable {
+                        tapCount++
+                        if (tapCount >= 7) {
+                            tapCount = 0
+                            onEnableDeveloper()
+                        }
+                    },
+            )
             Text(
-                "布卡流音",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.clickable {
+                "本地音乐、歌单、动态歌词与多房间同步的 Android 主应用。",
+                color = palette.muted,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TextButton(
+                onClick = {
                     tapCount++
                     if (tapCount >= 7) {
                         tapCount = 0
                         onEnableDeveloper()
                     }
                 },
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            ) {
+                Text("版本 ${BuildConfig.VERSION_NAME}", color = palette.muted)
+            }
+        }
+        SettingsCard("客户端关系", Icons.Rounded.Share) {
+            AboutClientRow(
+                title = "BukaMusic · 布卡流音",
+                subtitle = "手机端主应用（当前客户端）",
+                onClick = { open("https://github.com/HAN-BAK/BukaMusic") },
+            )
+            AboutClientRow(
+                title = "BukaMusic Connect · 布卡聚音",
+                subtitle = "互联终端、AirPlay 与多房间设备端",
+                onClick = { open("https://github.com/HAN-BAK/BukaMusic-Connect") },
+            )
+            AboutClientRow(
+                title = "BukaMusic Desktop · 布卡音台",
+                subtitle = "Windows 桌面控制端",
+                onClick = { open("https://github.com/HAN-BAK/BukaMusic-Desktop") },
+            )
+        }
+        SettingsCard("开源信息", Icons.Rounded.Save) {
+            Text(
+                "界面基础来自 MusicOne（MIT）；播放与多房间逻辑来自 BukaMusic Connect；Folia Sonnet 动态歌词遵循 AGPL-3.0。",
+                color = palette.muted,
+                style = MaterialTheme.typography.bodySmall,
             )
             Text(
-                "本地音乐与多房间",
-                color = LocalBukaPalette.current.muted,
+                "本客户端整体按 AGPL-3.0 发布，详细归属见仓库中的 NOTICE.md 与 LICENSES 目录。",
+                color = palette.muted,
                 style = MaterialTheme.typography.bodySmall,
             )
         }
+    }
+}
+
+@Composable
+private fun AboutClientRow(title: String, subtitle: String, onClick: () -> Unit) {
+    val palette = LocalBukaPalette.current
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = palette.accentSoft,
+            contentColor = palette.accentStrong,
+        ),
+    ) {
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(vertical = 4.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                color = palette.accentStrong,
+            )
+            Text(
+                subtitle,
+                color = palette.muted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Icon(Icons.Rounded.Info, null, tint = palette.accentStrong)
     }
 }
 

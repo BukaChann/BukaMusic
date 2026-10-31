@@ -289,7 +289,7 @@ private fun PlaylistLibraryHeader(
 }
 
 @Composable
-private fun PlaylistGridCard(
+internal fun PlaylistGridCard(
     title: String,
     count: Int,
     tracks: List<TrackItem>,
@@ -297,10 +297,11 @@ private fun PlaylistGridCard(
     onClick: () -> Unit,
     onPlay: () -> Unit,
     onMenu: (() -> Unit)?,
+    modifier: Modifier = Modifier,
 ) {
     val palette = LocalBukaPalette.current
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),

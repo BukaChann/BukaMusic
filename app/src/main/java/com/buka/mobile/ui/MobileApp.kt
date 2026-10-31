@@ -1045,6 +1045,7 @@ private fun HomeScreen(
 ) {
     val palette = LocalBukaPalette.current
     var selectedPlaylist by rememberSaveable { mutableStateOf<String?>(null) }
+    var homeDisplayMode by rememberSaveable { mutableStateOf(VisualDisplayMode.LIST) }
     BackHandler(enabled = selectedPlaylist != null) {
         selectedPlaylist = null
     }
@@ -1221,6 +1222,38 @@ private fun HomeScreen(
                 )
             }
         }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "首页视图",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = {
+                        homeDisplayMode = if (homeDisplayMode == VisualDisplayMode.LIST) {
+                            VisualDisplayMode.GRID
+                        } else {
+                            VisualDisplayMode.LIST
+                        }
+                    },
+                ) {
+                    Icon(
+                        if (homeDisplayMode == VisualDisplayMode.LIST) {
+                            Icons.Rounded.GridView
+                        } else {
+                            Icons.Rounded.ViewAgenda
+                        },
+                        if (homeDisplayMode == VisualDisplayMode.LIST) {
+                            "切换首页网格视图"
+                        } else {
+                            "切换首页列表视图"
+                        },
+                        tint = palette.accentStrong,
+                    )
+                }
+            }
+        }
 
         if (library.loading) {
             item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -1258,7 +1291,66 @@ private fun HomeScreen(
                     onMenu = null,
                 )
             }
-            if (wide) {
+            if (homeDisplayMode == VisualDisplayMode.GRID) {
+                item { SectionTitle("每日推荐", dailyRecommendations.dateKey) }
+                item {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        PlaylistGridCard(
+                            title = "每日推荐",
+                            count = dailyRecommendations.tracks.size,
+                            tracks = dailyRecommendations.tracks,
+                            favorite = false,
+                            onClick = { selectedPlaylist = "daily" },
+                            onPlay = onPlayDaily,
+                            onMenu = null,
+                            modifier = Modifier.weight(1f),
+                        )
+                        PlaylistGridCard(
+                            title = "我喜欢",
+                            count = playlists.favorites.size,
+                            tracks = playlists.favorites.mapNotNull { uri ->
+                                library.tracks.firstOrNull { it.uri == uri }
+                            },
+                            favorite = true,
+                            onClick = { selectedPlaylist = "favorites" },
+                            onPlay = onPlayFavorites,
+                            onMenu = null,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                item { SectionTitle("我的歌单", "收藏与自建歌单") }
+                items(playlists.playlists.chunked(if (wide) 3 else 2)) { rowPlaylists ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        rowPlaylists.forEach { playlist ->
+                            PlaylistGridCard(
+                                title = playlist.title,
+                                count = playlist.trackUris.size,
+                                tracks = playlist.trackUris.mapNotNull { uri ->
+                                    library.tracks.firstOrNull { it.uri == uri }
+                                },
+                                favorite = false,
+                                onClick = { selectedPlaylist = "custom:${playlist.id}" },
+                                onPlay = { onPlayPlaylist(playlist) },
+                                onMenu = null,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        repeat((if (wide) 3 else 2) - rowPlaylists.size) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+                item { HomeManagementActions(onOpenLibrary, onRefresh) }
+            } else if (wide) {
                 item {
                     Row(
                         Modifier.fillMaxWidth(),
@@ -1392,6 +1484,47 @@ private fun HomeScreen(
     }
 }
 }
+}
+
+@Composable
+private fun HomeManagementActions(onOpenLibrary: () -> Unit, onRefresh: () -> Unit) {
+    val palette = LocalBukaPalette.current
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        FilledTonalButton(
+            onClick = onOpenLibrary,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = palette.accentSoft,
+                contentColor = palette.accentStrong,
+            ),
+        ) {
+            Icon(
+                Icons.Rounded.QueueMusic,
+                null,
+                tint = palette.accentStrong,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text("管理歌单")
+        }
+        FilledTonalButton(
+            onClick = onRefresh,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = palette.accentSoft,
+                contentColor = palette.accentStrong,
+            ),
+        ) {
+            Icon(
+                Icons.Rounded.Refresh,
+                null,
+                tint = palette.accentStrong,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text("重新扫描")
+        }
+    }
 }
 
 @Composable
@@ -1628,6 +1761,7 @@ private fun LibraryScreen(
     var mode by rememberSaveable { mutableStateOf(LibraryView.SONGS) }
     var displayMode by rememberSaveable { mutableStateOf(VisualDisplayMode.LIST) }
     var selectedArtist by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedAlbum by rememberSaveable { mutableStateOf<String?>(null) }
     var selectionMode by remember { mutableStateOf(false) }
     var selectedUris by remember { mutableStateOf<Set<String>>(emptySet()) }
     var duplicatesOnly by rememberSaveable { mutableStateOf(false) }
@@ -1643,11 +1777,29 @@ private fun LibraryScreen(
             it.album.contains(query, ignoreCase = true)
     }
     val filtered = if (duplicatesOnly) searched.filter { it.uri in duplicateUris } else searched
-    BackHandler(enabled = selectedArtist != null || selectionMode) {
-        if (selectedArtist != null) selectedArtist = null else {
+    BackHandler(enabled = selectedAlbum != null || selectedArtist != null || selectionMode) {
+        if (selectedAlbum != null) {
+            selectedAlbum = null
+        } else if (selectedArtist != null) {
+            selectedArtist = null
+        } else {
             selectionMode = false
             selectedUris = emptySet()
         }
+    }
+    selectedAlbum?.let { album ->
+        AlbumDetailScreen(
+            album = album,
+            tracks = library.tracks.filter { it.album == album },
+            playback = playback,
+            favorites = playlists.favoriteSet,
+            onBack = { selectedAlbum = null },
+            onPlayAll = { tracks -> onPlayQueue(tracks, 0) },
+            onPlayTrack = { tracks, index -> onPlayQueue(tracks, index) },
+            onToggleFavorite = onToggleFavorite,
+            onMoreTrack = onMoreTrack,
+        )
+        return
     }
     selectedArtist?.let { artist ->
         ArtistDetailScreen(
@@ -1885,8 +2037,11 @@ private fun LibraryScreen(
                                 name = name,
                                 tracks = tracks,
                                 onClick = {
-                                    if (activeMode == LibraryView.ARTISTS) selectedArtist = name
-                                    else onPlayQueue(tracks, 0)
+                                    when (activeMode) {
+                                        LibraryView.ARTISTS -> selectedArtist = name
+                                        LibraryView.ALBUMS -> selectedAlbum = name
+                                        else -> Unit
+                                    }
                                 },
                             )
                         }
@@ -1901,8 +2056,11 @@ private fun LibraryScreen(
                                 name = name,
                                 tracks = tracks,
                                 onClick = {
-                                    if (activeMode == LibraryView.ARTISTS) selectedArtist = name
-                                    else onPlayQueue(tracks, 0)
+                                    when (activeMode) {
+                                        LibraryView.ARTISTS -> selectedArtist = name
+                                        LibraryView.ALBUMS -> selectedAlbum = name
+                                        else -> Unit
+                                    }
                                 },
                             )
                         }
@@ -1932,6 +2090,79 @@ private fun LibraryScreen(
                         Text("撤销", color = palette.accent)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumDetailScreen(
+    album: String,
+    tracks: List<TrackItem>,
+    playback: PlaybackState,
+    favorites: Set<String>,
+    onBack: () -> Unit,
+    onPlayAll: (List<TrackItem>) -> Unit,
+    onPlayTrack: (List<TrackItem>, Int) -> Unit,
+    onToggleFavorite: (TrackItem) -> Unit,
+    onMoreTrack: (TrackItem) -> Unit,
+) {
+    val palette = LocalBukaPalette.current
+    val artists = tracks.map(TrackItem::artist).filter(String::isNotBlank).distinct()
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Rounded.ArrowBack, "返回专辑列表")
+            }
+            Column(Modifier.weight(1f)) {
+                Text(album.ifBlank { "未知专辑" }, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    buildString {
+                        if (artists.isNotEmpty()) append(artists.joinToString(" / ")).append(" · ")
+                        append("${tracks.size} 首歌曲")
+                    },
+                    color = palette.muted,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            FilledTonalButton(
+                onClick = { onPlayAll(tracks) },
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = palette.accentSoft,
+                    contentColor = palette.accentStrong,
+                ),
+            ) {
+                Icon(
+                    Icons.Rounded.PlayArrow,
+                    null,
+                    tint = palette.accentStrong,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("播放全部")
+            }
+        }
+        LazyColumn(
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 30.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            itemsIndexed(tracks, key = { _, track -> track.uri }) { index, track ->
+                TrackRow(
+                    track = track,
+                    current = playback.current?.uri == track.uri,
+                    playing = playback.isPlaying && playback.current?.uri == track.uri,
+                    favorite = track.uri in favorites,
+                    onFavorite = { onToggleFavorite(track) },
+                    onMore = { onMoreTrack(track) },
+                    onClick = { onPlayTrack(tracks, index) },
+                )
             }
         }
     }
