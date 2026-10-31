@@ -10,6 +10,10 @@
   桌面端：<a href="https://github.com/HAN-BAK/BukaMusic-Desktop">BukaMusic Desktop</a>
 </p>
 
+<p align="center">手动下载：<a href="https://github.com/HAN-BAK/BukaMusic/releases">GitHub Releases</a> · <a href="https://gitee.com/hanhan2048/BukaMusic-Releases/releases">Gitee Releases</a></p>
+
+<p align="center">应用内更新：通过 Gitee 检测新版本并下载安装包</p>
+
 <p align="center">Android 6.0+ · AGPL-3.0</p>
 
 ## 客户端关系
